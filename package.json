@@ -1,0 +1,25 @@
+{
+  "name": "toolchain-timsp430",
+  "version": "1.90301.210510",
+  "description": "A port of the GNU C Compiler (GCC) and GNU Binutils (as, ld) for the embedded processor MSP430",
+  "keywords": [
+    "build tools",
+    "compiler",
+    "assembler",
+    "linker",
+    "preprocessor",
+    "msp430"
+  ],
+  "homepage": "https://sourceforge.net/projects/mspgcc/",
+  "license": "GPL-2.0-or-later",
+  "system": [
+    "windows",
+    "windows_amd64",
+    "windows_x86"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://sourceforge.net/p/mspgcc/mspgcc/ci/master/tree/"
+  }
+}
+

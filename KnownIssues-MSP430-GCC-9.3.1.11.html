@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+
+    <title>MSP430-GCC 9.3.1.11 Known Issues</title>
+    <style type="text/css">
+      body { font-family: "Source Sans Pro", sans-serif; font-size: 10pt }
+      samp { font-size: 9pt; background-color: #dcdde1; padding: 2px }
+      #s01 { font-size: 9pt; background-color: #dcdde1; padding: 0px; white-space: nowrap; }
+      p, li { max-width: 60em; }
+      table, td, th { border: 1px black solid; border-collapse: collapse;
+                       padding: 0.3em; max-width: 100em }
+      th { white-space: nowrap; }
+    </style>
+    <base target="_blank">
+  </head>
+  <body>
+    <header>
+      <h1>MSP430-GCC 9.3.1.11 Known Issues</h1>
+    </header>
+    <p>
+    The known issues in this version of the MSP430-GCC
+    toolchain are listed below.
+    <br>Their current status can be tracked in the <a href="https://sir.ext.ti.com/">Texas
+      Instruments Bug and Enhancement System</a>.
+    <br>Enter the bug
+    ID (e.g. "MSPGCC-122") in the search box, or click the link in the "Bug ID" column to be taken directly to the
+    corresponding entry.
+    </p>
+    <h2>Open Issues</h2>
+    <p>
+    <table>
+      <thead><tr><th>Bug ID</th><th>Title</th><th>Summary</th><th>Workaround</th></tr></thead>
+
+      <tr><th><a href="https://sir.ext.ti.com/jira/browse/EXT_EP-10146">EXT_EP-10146</a></th>
+        <td>G++ does not handle thunks in functions with varargs</td>
+        <td>Thunk functions, used to implement C++ virtual function calls with multiple inheritance,
+          that are variadic and so take a variable number of arguments,
+          are unsupported.
+          <br>The compiler will emit an error message when trying to use these:
+          <br><samp>error: generic thunk code fails for method 'METHOD' which uses '...'</samp> </td>
+        <td>N/A</td>
+      </tr>
+
+      <tr>
+        <th><a href="https://sir.ext.ti.com/jira/browse/EXT_EP-10149">EXT_EP-10149</a></th>
+        <td><var>atexit</var>-registered functions don't run at program termination</td>
+        <td>After returning from main, MSP430-GCC applications will not perform any termination steps, such as calling
+          functions registered with <var>atexit()</var>.</td>
+        <td>Override the default, weak definition of <code>void _exit (int status)</code> with one that will call the <var>atexit</var>-registered termination functions.
+          <var>__call_exitprocs</var> from <var>libc</var> performs the required operations.
+          <br>
+          A example implementation is below:
+          <br>
+          <code><pre>
+extern void __call_exitprocs (int status, void *ptr);
+
+void _exit (int status)
+{
+  __call_exitprocs (status, NULL);
+  while (1);
+}
+          </pre></code>
+          Ensure this code is wrapped in <code>extern "C" {}</code> if defined in a C++ program.</td>
+        </td>
+      </tr>
+
+
+      <tr><th><a href="https://sir.ext.ti.com/jira/browse/EXT_EP-10150">EXT_EP-10150</a></th>
+        <td>Some low-level TI C I/O functions are unimplemented in MSP430-GCC libraries</td>
+        <td>The low-level I/O functions <var>open</var>, <var>close</var>, <var>read</var>, <var>lseek</var> and <var>rename</var> are implemented only as stub functions in the MSP430-GCC libraries.
+          <br>If they are used, errno will be set to ENOSYS, and the function will return -1.
+          <br>Only <var>unlink</var> and <var>write</var> are implemented in a TI C I/O compatible manner.
+        </td>
+        <td>Override the stub implementations from the library with your own implementation, using Section 7 from the <var>TI
+          MSP430 Optimizing C/C++ Compiler User Guide</var> (slau132) as a reference. The functions are defined with weak binding in the libraries, so
+          a definition in the application will override them.</td>
+      </tr>
+
+      <tr>
+        <th><a href="https://sir.ext.ti.com/jira/browse/EXT_EP-10151">EXT_EP-10151</a></th>
+        <td>TI C I/O is unsupported in GDB</td>
+        <td>The low-level I/O functions <var>open</var>, <var>close</var>, <var>read</var>, <var>lseek</var>, <var>rename</var>, <var>write</var> and <var>unlink</var> are not
+          supported in GDB, so their use will have no effect, even when implemented in a TI C I/O compatible manner.
+
+        </td>
+        <td>Use a TI C I/O compatible debugger, such as the one available within Code Composer Studio.</td>
+      </tr>
+
+      <tr>
+        <th><a href="https://sir.ext.ti.com/jira/browse/EXT_EP-10152">EXT_EP-10152</a></th>
+        <td>Use of static global C++ destructors includes <var>impure_data</var> and other unneeded functionality in application</td>
+        <td>The G++ compiler will automatically included references to functions and variables such as <var>impure_data</var> or <var>__register_exitproc</var>
+          required for full <var>__cxa_atexit</var>-compliant support of C++ destructors.
+          These are unused by MSP430-GCC applications and unnecessarily increase the size requirements of the application.</td>
+        <td>Use the <var>-fno-use-cxa-atexit</var> option to disable support for this additional functionality, and remove
+          the unneeded symbol references.</td>
+      </tr>
+
+
+
+      <tr>
+        <th><a href="https://sir.ext.ti.com/jira/browse/EXT_EP-10155">EXT_EP-10155</a></th>
+        <td>Sub-optimal ordering of output sections in linker scripts</td>
+        <td>Output sections are not grouped by their LMA/VMA regions in the MSP430 device linker scripts.
+          <br>This results in excess ELF segments being used to construct the program image, which can negatively affect load times.
+          <td>Make the following changes to the output section ordering in the linker script:
+            <ul>
+              <li>Primarily group sections with LMA != VMA, which have matching LMA and VMA regions.</li>
+              <li>Secondarily group sections by either VMA or LMA region. VMA region is preferable when considering the execution view of the program.</li>
+              <li>Order these groups of output sections by increasing origin address of the region they are grouped by.</li>
+            </ul>
+          </td>
+        </td>
+      </tr>
+
+      <tr>
+        <th><a href="https://sir.ext.ti.com/jira/browse/EXT_EP-10157">EXT_EP-10157</a></th>
+        <td>Linker scripts for MSP430 FRAM devices set a separate load region for the <var>.upper.data</var> output section</td>
+        <td>The contents of the <var>.upper.data</var> section of executable files that are linked using linker scripts for MSP430
+          FRAM devices, will be unnecessarily copied from a load address to a virtual address during program
+          initialization. This is because a separate load region is specified for the <var>.upper.data</var> output section.
+          <br>The load region is set as FRAM, however the data can be loaded directly
+          to the HIFRAM region, avoiding the need for run-time initialization of the data in the section.
+        </td>
+        <td>Apply the patch described in the workaround field of the entry for this issue in the TI Bug and Enhancement System to the linker script.
+          The patch removes the separate load region, and the symbols that indicate data must be
+          copied by the C-Runtime startup code. This produces the following new definition for <var>.upper.data</var>:
+          <pre><code>  .upper.data :
+  {
+    __high_datastart = .;
+    *(.upper.data.* .upper.data)
+    __high_dataend = .;
+  } &gt; HIFRAM</pre></code>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+
+
+
+
